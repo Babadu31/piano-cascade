@@ -7,6 +7,8 @@ import { barAt, barLen } from './meter.js';
 import { keyAlts, spDiat, spell } from './theory.js';
 
 const EPS = 1e-6;
+/** Grille d'écriture : 1/24 de temps (contient la double croche 6/24 et la croche de triolet 8/24). */
+const GRID = 24;
 /** Valeurs de notes écrivables, en temps (noire = 1). */
 const VALUES = [4, 3, 2, 1.5, 1, 0.75, 0.5, 0.375, 0.25, 0.1875, 0.125];
 const TRIPLETS = [4 / 3, 2 / 3, 1 / 3, 1 / 6];
@@ -51,20 +53,25 @@ export function layoutScore(song) {
 
   // 1. morceaux de notes (coupés aux barres, en valeurs écrivables)
   const pieces = { T:[], B:[] };
+  // Les fichiers joués « à la main » ont des positions imprécises (tick 479 au lieu de 480) :
+  // pour l'écriture seulement, tout est arrondi au 1/24 de temps (doubles croches et triolets exacts).
+  const q = x => Math.round(x * GRID) / GRID;
   for (const n of song.notes) {
     const sp = n.sp || spell(n.midi, key), d = spDiat(sp), st = staffOf(n);
     n.sp = sp; n.staff = st; used[st] = true;
-    let pos = n.start, left = n.dur, first = true, prev = null;
-    while (left > 0.0625 - EPS) {
-      const bar = barAt(song, pos), barEnd = bar.start + bar.len;
-      const seg = Math.min(left, barEnd - pos);
-      for (const { v, tuplet } of splitValue(seg)) {
-        const p = { n, d, sp, start:pos, v, tuplet, first, tiePrev:prev };
+    const s0 = q(n.start), end = Math.max(s0 + 1 / GRID, q(n.start + n.dur));
+    let pos = s0, first = true, prev = null;
+    for (let guard = 0; pos < end - EPS && guard < 1000; guard++) {
+      const bar = barAt(song, pos), segEnd = Math.min(end, bar.start + bar.len);
+      let at = pos;
+      const vals = splitValue(segEnd - pos);
+      if (!vals.length && first) vals.push({ v:0.125 });        // note très courte : au moins une triple croche
+      for (const { v, tuplet } of vals) {
+        const p = { n, d, sp, start:at, v, tuplet, first, tiePrev:prev };
         if (prev) prev.tieNext = p;
-        pieces[st].push(p); prev = p; first = false; pos += v;
+        pieces[st].push(p); prev = p; first = false; at += v;
       }
-      left = n.start + n.dur - pos;
-      if (seg <= 0) break;
+      pos = Math.max(segEnd, pos + 1 / GRID);                     // toujours avancer, même pour un reste minuscule
     }
   }
 
