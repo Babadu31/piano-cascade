@@ -60,6 +60,7 @@ kbd{background:var(--panel2);border:1px solid var(--line);border-bottom-width:2p
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:30;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}
 #toast.show{opacity:1} #toast.err{border-color:var(--bad)}
 #inputStatus{color:var(--muted);font-size:12px}
+.menu b{white-space:nowrap}
 .wide{max-width:780px}
 .muted{color:var(--muted)} .small{font-size:12px}
 .card a{color:#8fb4ff}
@@ -1639,6 +1640,17 @@ function bind() {
   $('resAgain').addEventListener('click', () => { reset(); setPlaying(true); });
   $('resClose').addEventListener('click', () => $('results').hidden = true);
   document.addEventListener('click', e => { const d = $('opts'); if (d.open && !d.contains(e.target)) d.open = false; });
+  // garde le menu Options entièrement dans la fenêtre, quelle que soit la place du bouton
+  const placeOpts = () => {
+    const d = $('opts'), menu = d.querySelector('.menu');
+    if (!d.open) return;
+    if (innerWidth <= 900) { menu.style.cssText = ''; return; }   // petit écran : géré par le CSS
+    const r = d.querySelector('summary').getBoundingClientRect(), w = Math.min(360, innerWidth - 16);
+    const left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8));
+    menu.style.cssText = `position:fixed;left:${left}px;right:auto;top:${r.bottom + 6}px;width:${w}px;max-height:${Math.max(200, innerHeight - r.bottom - 16)}px;overflow:auto`;
+  };
+  $('opts').addEventListener('toggle', placeOpts);
+  addEventListener('resize', placeOpts);
 }
 
 function frame() {
