@@ -1,0 +1,6 @@
+Basic Pitch 1.0.1 (Spotify, Apache-2.0) + TensorFlow.js (Apache-2.0)
+Regénérer : npm i @spotify/basic-pitch@1.0.1 esbuild && esbuild entry.js --bundle --minify --format=iife --outfile=basic-pitch.js
+entry.js :
+  import * as tf from "@tensorflow/tfjs";
+  import { BasicPitch, outputToNotesPoly, addPitchBendsToNoteEvents, noteFramesToTime } from "@spotify/basic-pitch";
+  window.BasicPitchLib = { tf, BasicPitch, outputToNotesPoly, addPitchBendsToNoteEvents, noteFramesToTime };
