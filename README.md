@@ -19,4 +19,4 @@ Clavier Casio / MIDI : câble USB du clavier + **adaptateur USB-OTG** vers la pr
 L'exécutable `PianoCascade.exe` est publié dans le dépôt privé de développement.
 
 Licences : code de l'appli © Babadu31 ; `vendor/basic-pitch/` = Spotify Basic Pitch + TensorFlow.js (Apache-2.0).
-Morceaux intégrés : domaine public.
+Morceaux intégrés : domaine public. Sons de piano : Salamander Grand Piano (Alexander Holm, CC BY 3.0).

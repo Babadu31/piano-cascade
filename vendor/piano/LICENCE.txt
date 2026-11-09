@@ -1,0 +1,5 @@
+Sons de piano : « Salamander Grand Piano V3 » par Alexander Holm
+Licence : Creative Commons Attribution 3.0 (CC BY 3.0) — https://creativecommons.org/licenses/by/3.0/
+Source : https://archive.org/details/SalamanderGrandPianoV3
+Modifications : extraits de la vélocité 8 (paquet npm @audio-samples/piano-mp3-velocity8, MIT),
+raccourcis à 7 secondes avec fondu, convertis en mono Opus 56 kb/s.
