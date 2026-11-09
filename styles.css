@@ -1,0 +1,85 @@
+:root{
+  --bg:#0f1220; --panel:#181c2f; --panel2:#232843; --line:#2e3558;
+  --txt:#e8eaf6; --muted:#9aa0c3; --accent:#4f8cff; --ok:#2ecc71; --bad:#ff5468; --warn:#ffb648;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:"Segoe UI",system-ui,Roboto,sans-serif;font-size:14px;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);position:relative;z-index:5}
+.brand{font-weight:700;font-size:16px;margin-right:6px;white-space:nowrap}
+.grp{display:flex;align-items:center;gap:6px;background:var(--panel2);padding:4px 8px;border-radius:8px;white-space:nowrap}
+.grp span{color:var(--muted)}
+select,button,.btn{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+select{max-width:260px}
+button:hover,.btn:hover,select:hover{border-color:var(--accent)}
+.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;min-width:100px}
+.on{background:#1f4f37;border-color:var(--ok)}
+input[type=range]{width:90px;accent-color:var(--accent)}
+input[type=checkbox]{accent-color:var(--accent)}
+details{position:relative}
+details summary{list-style:none}
+details summary::-webkit-details-marker{display:none}
+.menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;width:330px;display:grid;gap:10px;box-shadow:0 10px 30px #0008}
+.menu label{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.menu small{color:var(--muted)}
+main{flex:1;display:flex;flex-direction:column;min-height:0}
+#staff{width:100%;height:210px;display:block;flex:none}
+#stage{position:relative;flex:1;min-height:0}
+#hw{width:100%;height:100%;display:block}
+.hud{position:absolute;top:10px;background:#12162acc;border:1px solid var(--line);border-radius:12px;padding:10px 14px;backdrop-filter:blur(4px);pointer-events:none}
+#hudL{left:10px;min-width:170px}
+#hudR{right:10px;text-align:right;min-width:170px}
+.lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+#playedNote{font-size:34px;font-weight:700;line-height:1.15}
+#playedSub{color:var(--muted);font-size:12px;min-height:16px}
+.meter{height:6px;background:#0008;border-radius:3px;margin-top:6px;overflow:hidden;position:relative}
+#micLvl{height:100%;width:0;background:var(--ok)}
+#micGateMark{position:absolute;top:0;bottom:0;width:2px;background:var(--warn)}
+.stat{font-size:13px;color:var(--muted)} .stat b{color:var(--txt);font-size:18px}
+#combo b{color:var(--warn)}
+.overlay{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+.overlay[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 26px;max-width:640px;width:100%;max-height:90vh;overflow:auto}
+.card h2{margin-top:0}
+.card table{width:100%;border-collapse:collapse;margin:10px 0}
+.card td{padding:5px 0;border-bottom:1px solid var(--line)} .card td:last-child{text-align:right;font-weight:600}
+.stars{font-size:38px;color:var(--warn);letter-spacing:4px}
+kbd{background:var(--panel2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:12px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:30;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}
+#toast.show{opacity:1} #toast.err{border-color:var(--bad)}
+#inputStatus,#songInfo{color:var(--muted);font-size:12px}
+#songInfo{white-space:nowrap}
+.menu b{white-space:nowrap}
+.wide{max-width:780px}
+.muted{color:var(--muted)} .small{font-size:12px}
+.card a{color:#8fb4ff}
+.row2{display:flex;gap:8px;margin:10px 0}
+.row2 input{flex:1;font:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.res{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.res b{display:block} .res small{color:var(--muted)} .res .acts{white-space:nowrap}
+#searchRes{max-height:45vh;overflow:auto}
+.trk td{padding:6px 4px;border-bottom:1px solid var(--line)} .trk td:last-child{text-align:right}
+.steps li{margin:6px 0}
+.dev{padding:8px 12px;border-radius:8px;background:var(--panel2);margin:8px 0}
+#menuBtn{display:none}
+#hw{touch-action:none}
+.rec{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.bar{height:8px;background:#0008;border-radius:4px;overflow:hidden;margin:8px 0}
+.bar>div{height:100%;width:0;background:var(--accent);transition:width .2s}
+#recoResult{margin:10px 0}
+.menu input[type=password]{font:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 8px;width:150px}
+@media (max-width: 900px){
+  header{padding:6px 8px;gap:6px}
+  header .more{display:none}
+  header.open .more{display:flex}
+  #menuBtn{display:inline-block}
+  .brand{display:none}
+  select{max-width:46vw}
+  #staff{height:150px}
+  .hud{padding:6px 10px;top:6px}
+  #hudL{left:6px;min-width:0} #hudR{right:6px;min-width:0}
+  #playedNote{font-size:24px} .stat b{font-size:15px} #bestTxt{display:none}
+  .menu{position:fixed;left:8px;right:8px;top:56px;width:auto;max-height:80vh;overflow:auto}
+}
+@media (max-height: 520px){ #staff{height:120px} }
+.dropping::after{content:'Déposez le fichier MIDI ou MusicXML ici';position:fixed;inset:12px;border:3px dashed var(--accent);border-radius:16px;background:#0f1220d0;display:flex;align-items:center;justify-content:center;font-size:24px;z-index:40}
