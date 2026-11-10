@@ -33,6 +33,7 @@ function rrect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 export function noteColor(n) {
+  if (n.res === 'skip') return COL.auto;
   if (n.res === 'perfect') return COL.ok;
   if (n.res === 'good') return COL.good;
   if (n.res === 'miss') return COL.bad;
@@ -91,9 +92,11 @@ export function drawHighway() {
       const yb = hitY - (n.start - G.pos) * ppb, yt = yb - n.dur * ppb;
       if (yt >= hitY) continue;
       const y1 = Math.min(yb, hitY), col = noteColor(n);
-      ctx.globalAlpha = n.res === 'miss' ? 0.45 : active(n) ? 1 : 0.55;
+      ctx.globalAlpha = n.res === 'skip' ? 0.3 : n.res === 'miss' ? 0.45 : active(n) ? 1 : 0.55;
       ctx.fillStyle = col; rrect(ctx, k.x + 2, yt + 1, k.w - 4, Math.max(3, y1 - yt - 2), 5); ctx.fill();
       if (n.res === 'perfect' || n.res === 'good') { ctx.shadowColor = col; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0; }
+      if (n.hold === 'on') { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 18; ctx.fill(); ctx.shadowBlur = 0; }   // tenue en cours
+      if (n.hold === 'short') { ctx.strokeStyle = COL.warn; ctx.lineWidth = 2.5; ctx.stroke(); }                    // relâchée trop tôt
       ctx.globalAlpha = 1;
       if (S.labels && y1 - yt > 16 && k.w > 16) {
         ctx.fillStyle = '#0b0e1acc'; ctx.font = `600 ${Math.min(13, k.w * 0.42)}px sans-serif`; ctx.textAlign = 'center';
@@ -101,6 +104,12 @@ export function drawHighway() {
         const L = S.kbLabels && active(n) && y1 - yt > 32 ? letterFor(n.midi) : null;   // touche d'ordinateur à presser
         if (L) { ctx.font = `700 ${Math.min(12, k.w * 0.4)}px sans-serif`; ctx.fillText('⌨' + L, k.x + k.w / 2, y1 - 21); }
         ctx.textAlign = 'left';
+      }
+      if (S.fingers && n.finger && active(n) && y1 - yt > 14 && k.w > 12) {        // doigt à utiliser
+        const r = Math.min(8, k.w * 0.32), cx = k.x + k.w / 2, cy = Math.min(y1 - r - 3, Math.max(yt, 0) + r + 3);   // toujours visible
+        ctx.fillStyle = '#ffffffd8'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#b4580a'; ctx.font = `700 ${Math.round(r * 1.4)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(n.finger), cx, cy + 0.5); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       }
     }
   }

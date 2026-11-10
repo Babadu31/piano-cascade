@@ -1,6 +1,6 @@
 import { audio } from './audio.js';
 import { $ } from './dom.js';
-import { G, bps, clock, finish, judge, markMisses, pendingStart, reset, schedule, setPlaying, toggleListen } from './game.js';
+import { G, bps, clock, finish, judge, markMisses, pendingStart, reset, schedule, setPlaying, tickHolds, toggleListen, checkLoop } from './game.js';
 import { importFile, loadBuffer } from './importer.js';
 import { getKbOct, kbFit, letterFor, micTick, noteOff, noteOn, pressed, setKbOct } from './input.js';
 import { BUILTIN, buildBuiltin, songs } from './library.js';
@@ -10,6 +10,7 @@ import { yin } from './pitch.js';
 import { processAudioFile, transcribePcm } from './reco.js';
 import { drawHighway, expectedSet } from './render.js';
 import { drawStaff } from './staff.js';
+import { addPracticeTime, bindToday } from './today.js';
 import { doSearch, servedLocally } from './search.js';
 import { S, loadJSON, saveJSON } from './settings.js';
 import { arrangePiano, buildFromTracks, defaultAssign, finalize } from './song.js';
@@ -33,7 +34,9 @@ function frame() {
       G.pos = p;
       schedule(now);
       if (S.mode !== 'wait' && !G.listen) markMisses();
-      if (G.pos >= G.song.end + 1) finish();
+      tickHolds();
+      if (!G.listen) addPracticeTime(dt);
+      if (!checkLoop() && !G.loop && G.pos >= G.song.end + 1) finish();
     }
     micTick(now);
     if (S.kbFollow && G.song && !pressed.size) {
@@ -50,6 +53,7 @@ function frame() {
 
 songs.push(...BUILTIN.map(d => finalize(buildBuiltin(d))));
 bind();
+bindToday(id => { const s = songs.find(x => x.id === id); if (s) { fillSongs(s.id); selectSong(s); } });
 const startSong = songs.find(s => s.id === S.lastSong) || songs.find(s => s.id === 'clair');
 fillSongs(startSong.id); selectSong(startSong);
 if (!loadJSON('pc_seen_help')) { $('help').hidden = false; saveJSON('pc_seen_help', true); }

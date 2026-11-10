@@ -1,7 +1,7 @@
 /* Piano Cascade — fonctionnement hors ligne.
    Page : réseau d'abord (pour recevoir les mises à jour), sinon copie locale.
    Autres fichiers de l'appli : copie locale d'abord. */
-const CACHE = 'piano-cascade-v6';
+const CACHE = 'piano-cascade-v8';
 const CORE = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const CORE = [
   './src/audio.js',
   './src/constants.js',
   './src/dom.js',
+  './src/fingering.js',
   './src/game.js',
   './src/importer.js',
   './src/input.js',
@@ -23,6 +24,7 @@ const CORE = [
   './src/midi.js',
   './src/musicxml.js',
   './src/pitch.js',
+  './src/practice.js',
   './src/reco.js',
   './src/render.js',
   './src/search.js',
@@ -30,6 +32,7 @@ const CORE = [
   './src/staff.js',
   './src/song.js',
   './src/theory.js',
+  './src/today.js',
   './src/tracks.js',
   './src/transcribe.js',
   './src/ui.js',

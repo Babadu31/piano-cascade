@@ -96,7 +96,9 @@ export function parseMusicXML(text, name) {
             const sp = { letter:'CDEFGAB'.indexOf(step), alt:Math.round(num(pitch, 'alter')), oct:num(pitch, 'octave') };
             const staff = num(el, ':scope > staff') || 1;
             const ties = [...el.querySelectorAll(':scope > tie')].map(t => t.getAttribute('type'));
-            m.notes.push({ midi:spToMidi(sp), sp, start:start / div, dur:d / div, ties,
+            const fg = el.querySelector(':scope > notations > technical > fingering');
+            const finger = fg ? parseInt(fg.textContent) : 0;
+            m.notes.push({ midi:spToMidi(sp), sp, start:start / div, dur:d / div, ties, finger:finger >= 1 && finger <= 5 ? finger : undefined,
                            hand:staves >= 2 ? (staff >= 2 ? 'L' : 'R') : (pi === 0 ? 'R' : 'L') });
             break;
           }
@@ -156,7 +158,7 @@ export function parseMusicXML(text, name) {
           const prev = open.get(k); prev.dur = start + n.dur - prev.start;
           if (!n.ties.includes('start')) open.delete(k);
         } else if (n.dur > 0) {
-          const nn = { midi:n.midi, sp:n.sp, start, dur:n.dur, hand:n.hand }; notes.push(nn);
+          const nn = { midi:n.midi, sp:n.sp, start, dur:n.dur, hand:n.hand, finger:n.finger }; notes.push(nn);
           if (n.ties.includes('start')) open.set(k, nn);
         }
       }

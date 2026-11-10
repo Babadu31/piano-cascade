@@ -1,9 +1,10 @@
 import { accentAt, barAt, bpmAt, clickUnit as meterClickUnit, countInStart, nextTick, tickAfter } from './meter.js';
 import { audio } from './audio.js';
-import { COL, GOOD, PERFECT } from './constants.js';
+import { COL, GOOD, HOLD_MIN_BEATS, HOLD_RATIO, PERFECT } from './constants.js';
 import { $ } from './dom.js';
 import { addFx } from './render.js';
-import { S, loadJSON, saveJSON } from './settings.js';
+import { S, loadJSON, saveJSON, saveSettings } from './settings.js';
+import { recordSession } from './today.js';
 import { pcOf } from './theory.js';
 import { toast, updateHud } from './ui.js';
 
@@ -38,7 +39,9 @@ export function reset() {
   G.pos = startPos();
   G.playing = false; G.finished = false; G.waiting = false; G.listen = false;
   G.nextClick = nextTick(G.song, G.pos); G.nextAudio = 0;
-  G.st = { perfect:0, good:0, miss:0, wrong:0, combo:0, maxCombo:0, score:0 };
+  G.st = { perfect:0, good:0, miss:0, wrong:0, combo:0, maxCombo:0, score:0, holdOk:0, holdShort:0 };
+  holding.clear(); G.notes.forEach(n => { n.hold = null; });
+  G.errBars = new Map(); G.loop = null;
   G.fx = [];
   $('results').hidden = true;
   updatePlayBtn(); updateHud();
@@ -100,7 +103,7 @@ export function markMisses() {
     const n = ns[i];
     if (n.start > G.pos) break;
     if (n.res == null && active(n) && (G.pos - n.start) / b > GOOD) {
-      n.res = 'miss'; G.st.miss++; G.st.combo = 0; G.ver++;
+      n.res = 'miss'; G.st.miss++; G.st.combo = 0; G.ver++; countErr(n.start);
       if (++missed <= 6) addFx('Raté', COL.bad, n.midi);
     }
   }
@@ -114,6 +117,90 @@ function hit(n, rating, silent) {
   const mult = Math.min(4, 1 + Math.floor(G.st.combo / 10));
   G.st.score += (rating === 'perfect' ? 100 : 50) * mult;
   if (!silent) addFx(rating === 'perfect' ? 'Parfait !' : 'Bien', rating === 'perfect' ? COL.ok : COL.good, n.midi);
+}
+
+/* ---------- Mesures difficiles ---------- */
+function countErr(beat) {
+  if (!G.song || beat < 0) return;
+  const i = barAt(G.song, beat).index;
+  G.errBars.set(i, (G.errBars.get(i) || 0) + 1);
+}
+/** Les mesures où l'on s'est le plus trompé : [{ index, errors }] (index dans song.bars), au plus `max`. */
+export function hardestBars(max = 3) {
+  return [...(G.errBars || new Map())].filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    .slice(0, max).map(([index, errors]) => ({ index, errors }));
+}
+
+/* ---------- Travail par passage : boucle de mesures ----------
+   G.loop = { from, to (temps), fromBar, toBar (index), auto, target (%), passes, streak, snap } */
+export function startLoop(fromBar, toBar, auto = true, target = 100) {
+  const bars = G.song.bars, a = Math.max(0, Math.min(fromBar, toBar)), z = Math.min(bars.length - 1, Math.max(fromBar, toBar));
+  reset();
+  G.loop = { fromBar:a, toBar:z, from:bars[a].start, to:bars[z].start + bars[z].len, auto, target, passes:0, streak:0, best:0 };
+  beginPass();
+  setPlaying(true);
+}
+export function stopLoop() { G.loop = null; reset(); }
+function beginPass() {
+  const L = G.loop, ns = G.notes;
+  audio.stopAll(); holding.clear();
+  for (const n of ns) { n.res = (n.start < L.from - 1e-6 || n.start >= L.to - 1e-6) ? 'skip' : null; n.hold = null; }
+  G.cur = 0; G.ver++; G.waiting = false; G.finished = false;
+  const first = barAt(G.song, L.from), lead = first.len < 2 ? first.len * 2 : first.len;   // une mesure de décompte
+  G.pos = L.from - lead;
+  G.nextClick = nextTick(G.song, G.pos);
+  G.nextAudio = ns.findIndex(n => n.start >= G.pos - 1e-9); if (G.nextAudio < 0) G.nextAudio = ns.length;
+  L.snap = { miss:G.st.miss, wrong:G.st.wrong, hits:G.st.perfect + G.st.good };
+}
+/** Appelé à chaque image : fin du passage → bilan, accélération éventuelle, et on recommence. */
+export function checkLoop() {
+  const L = G.loop;
+  if (!L || G.pos < L.to - 1e-6) return false;
+  const errors = (G.st.miss - L.snap.miss) + (G.st.wrong - L.snap.wrong);
+  const notes = G.notes.filter(n => n.res !== 'skip' && active(n)).length;
+  const ok = errors === 0 && G.st.perfect + G.st.good - L.snap.hits >= notes;
+  L.passes++; L.streak = ok ? L.streak + 1 : 0; L.best = Math.max(L.best, L.streak);
+  let msg = ok ? 'Passage réussi !' : `${errors} erreur${errors > 1 ? 's' : ''} — on recommence`;
+  if (ok && L.auto && S.tempo < L.target) {
+    S.tempo = Math.min(L.target, S.tempo + 5); saveSettings();
+    msg += ` Tempo ${S.tempo} %`;
+    emitTempo();
+  } else if (ok && L.auto && S.tempo >= L.target) msg += ' Objectif atteint 🎉';
+  addFx(msg, ok ? COL.ok : COL.warn, G.notes.find(n => n.res !== 'skip')?.midi ?? 60);
+  beginPass();
+  updateHud();
+  return true;
+}
+let tempoListener = () => {};
+/** L'interface s'abonne pour afficher le nouveau tempo quand la boucle accélère. */
+export function onTempoChange(fn) { tempoListener = fn; }
+const emitTempo = () => tempoListener();
+
+/* ---------- Tenue des notes (clavier MIDI, clavier d'ordinateur, écran tactile) ---------- */
+const holding = new Map();          // touche enfoncée (midi) → note de la partition qu'elle a validée
+function startHold(n, midi, src) {
+  if (src === 'mic' || G.listen || n.dur < HOLD_MIN_BEATS - 1e-6) return;   // le micro ne sait pas quand on relâche
+  holding.set(midi, n); n.hold = 'on';
+}
+function judgeHold(n, released) {
+  if (n.hold !== 'on') return true;
+  if (G.pos - n.start >= n.dur * HOLD_RATIO - 1e-6) {
+    n.hold = 'ok'; G.st.holdOk++; G.st.score += 25 * Math.min(4, 1 + Math.floor(G.st.combo / 10)); G.ver++;
+    return true;
+  }
+  if (released) { n.hold = 'short'; G.st.holdShort++; G.ver++; addFx('Tenez la note !', COL.warn, n.midi); updateHud(); return true; }
+  return false;
+}
+/** Touche relâchée : la note était-elle tenue assez longtemps ? */
+export function releaseHold(midi) {
+  const n = holding.get(midi);
+  if (!n) return;
+  holding.delete(midi);
+  judgeHold(n, true);
+}
+/** À chaque image : les notes tenues jusqu'au bout sont validées sans attendre le relâchement. */
+export function tickHolds() {
+  for (const [m, n] of holding) if (judgeHold(n, false)) holding.delete(m);
 }
 
 /** Évalue une note jouée. Renvoie true si elle correspond à la partition. */
@@ -141,11 +228,12 @@ export function judge(midi, src) {
     if (best) rating = bd <= PERFECT ? 'perfect' : 'good';
   }
   if (!best) {
-    if (G.pos >= G.notes[0].start - 1) { G.st.wrong++; G.st.combo = 0; addFx('Fausse note', COL.bad, midi); }
+    if (G.pos >= G.notes[0].start - 1) { G.st.wrong++; G.st.combo = 0; countErr(G.pos); addFx('Fausse note', COL.bad, midi); }
     updateHud();
     return false;
   }
   hit(best, rating);
+  startHold(best, midi, src);
   if (src === 'mic') {   // le micro n'entend qu'une note : il valide tout l'accord
     for (let i = G.cur; i < G.notes.length && G.notes[i].start <= best.start; i++) { const n = G.notes[i]; if (n !== best && n.res == null && active(n) && n.start === best.start) hit(n, rating, true); }
   }
@@ -163,15 +251,31 @@ export function finish() {
   const prev = loadJSON(key);
   const isBest = !prev || s.score > prev.score;
   if (isBest) saveJSON(key, { score:s.score, acc, tempo:S.tempo });
+  recordSession({ acc, holds:s.holdOk + s.holdShort ? s.holdOk / (s.holdOk + s.holdShort) : null, score:s.score });
   $('resTitle').textContent = isBest && prev ? 'Nouveau record ! 🎉' : 'Morceau terminé !';
   $('resStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
   const rows = [['Score', s.score], ['Précision', Math.round(acc * 100) + ' %'], ['Parfait', s.perfect], ['Bien', s.good],
     ['Ratées', s.miss], ['Fausses notes', s.wrong], ['Meilleure série', s.maxCombo], ['Tempo', S.tempo + ' %']];
+  const holds = s.holdOk + s.holdShort;
+  if (holds) rows.splice(2, 0, ['Notes longues bien tenues', `${s.holdOk} / ${holds} (${Math.round(s.holdOk / holds * 100)} %)`]);
   $('resTable').innerHTML = rows.map(([a, v]) => `<tr><td>${a}</td><td>${v}</td></tr>`).join('');
   $('resTip').textContent = acc >= 0.95 && S.tempo < 100 ? 'Excellent ! Essayez d\'augmenter le tempo de 10 %.'
     : acc >= 0.95 && S.mode === 'wait' ? 'Maîtrisé ! Passez en mode Rythme pour travailler la régularité.'
     : acc < 0.6 ? 'Courage : baissez le tempo ou travaillez une main à la fois.'
     : 'Bien joué ! Rejouez pour gagner en régularité.';
+  // mesures où l'on s'est le plus trompé, avec un bouton pour les travailler en boucle
+  const hard = hardestBars(3), box = $('resHard');
+  box.hidden = !hard.length; box.innerHTML = '';
+  if (hard.length) {
+    const label = i => (G.song.bars[0].pickup ? (i === 0 ? 'la levée' : i) : i + 1);
+    const t = document.createElement('div');
+    t.textContent = 'Mesures à travailler : ' + hard.map(h => `${label(h.index)} (${h.errors} erreur${h.errors > 1 ? 's' : ''})`).join(', ');
+    const b = document.createElement('button'); b.className = 'primary'; b.style.marginTop = '8px';
+    const z = Math.min(G.song.bars.length - 1, hard[0].index + 1);
+    b.textContent = `🔁 Travailler les mesures ${label(hard[0].index)}–${label(z)} en boucle`;
+    b.onclick = () => { $('results').hidden = true; startLoop(hard[0].index, z, true, Math.max(S.tempo, 100)); };
+    box.append(t, b);
+  }
   $('results').hidden = false;
   updateHud();
 }

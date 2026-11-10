@@ -18,6 +18,7 @@ const KEYSIG_D = {
 const REF = { T:30, B:18 };              // position de la 1re ligne (Mi4 / Sol2)
 
 function noteColor(n, exp) {
+  if (n.res === 'skip') return C_OTHER;
   if (n.res === 'perfect' || n.res === 'good') return C_DONE;
   if (n.res === 'miss') return C_MISS;
   if (!active(n)) return C_OTHER;
@@ -127,6 +128,14 @@ export function drawStaff() {
         ctx.fillStyle = ctx.strokeStyle = c; ctx.lineWidth = 1.6;
         ctx.beginPath(); ctx.ellipse(hx, y, hw, sp * 0.44, -0.35, 0, Math.PI * 2);
         if (e.base >= 2) ctx.stroke(); else ctx.fill();
+        if (S.fingers && hd.n.finger && hd.piece.first && active(hd.n)) {
+          ctx.save(); ctx.fillStyle = '#b4580a'; ctx.font = `700 ${Math.round(sp * 1.15)}px sans-serif`; ctx.textAlign = 'center';
+          // ligne des doigtés : entre la portée et les noms de notes (accord : à droite de chaque tête)
+          const fy = e.heads.length > 1 ? y + sp * 0.4
+            : st === 'T' ? Math.min(y - sp * 1.2, tTop - sp * 0.5) : Math.min(h - 14, Math.max(y + sp * 1.9, bot.B + sp * 1.3));
+          ctx.fillText(String(hd.n.finger), e.heads.length > 1 ? hx + hw * 2.4 : hx, fy);
+          ctx.restore();
+        }
         if (e.dots) { ctx.beginPath(); ctx.arc(x + hw * 2.2 + (hd.side > 0 ? hw * 1.9 : 0), y - (hd.d % 2 === 0 ? sp * 0.5 : 0), sp * 0.16, 0, Math.PI * 2); ctx.fill(); }
         if (hd.acc != null) {
           accCol = lastAccD - hd.d < 6 ? accCol + 1 : 0; lastAccD = hd.d;
@@ -149,7 +158,7 @@ export function drawStaff() {
         const txt = named.map(hd => spName(hd.n.sp, false)).join(' ');
         ctx.font = `${Math.round(sp * (named.length > 1 ? 0.9 : 1.05))}px sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = 0.75;
         ctx.fillStyle = noteColor(named[0].n, exp);
-        const ly = st === 'T' ? Math.max(10, Math.min(tTop - sp * 1.6, yOf(st, hi.d) - sp * 1.4))
+        const ly = st === 'T' ? Math.max(10, Math.min(tTop - sp * 1.6, yOf(st, hi.d) - sp * (S.fingers ? 2.5 : 1.4)))
                               : Math.min(h - 3, Math.max(bot.B + sp * 2.4, yOf(st, lo.d) + sp * 2));
         ctx.fillText(txt, x, ly);
         ctx.globalAlpha = 1; ctx.textAlign = 'left';

@@ -1,7 +1,9 @@
 import { audio } from './audio.js';
 import { COL } from './constants.js';
 import { $ } from './dom.js';
-import { G, reset, setPlaying, toggleListen } from './game.js';
+import { assignFingers } from './fingering.js';
+import { G, onTempoChange, reset, setPlaying, startLoop, stopLoop, toggleListen } from './game.js';
+import { barAt } from './meter.js';
 import { handleFile } from './importer.js';
 import { enableMic, enableMidi, input, mic, noteOff, noteOn, setKbOct } from './input.js';
 import { songs } from './library.js';
@@ -25,6 +27,24 @@ export function updateHud() {
     const best = loadJSON('pc_best_' + G.song.id + '_' + S.mode + '_' + S.hands);
     $('bestTxt').textContent = best ? `Record : ${best.score} (${Math.round(best.acc * 100)} %, tempo ${best.tempo} %)` : '';
   }
+  const L = G.loop, lt = $('loopTxt');
+  lt.hidden = !L;
+  if (L) lt.textContent = `🔁 ${barLabel(L.fromBar)}–${barLabel(L.toBar).replace('m. ', '')} · ✔ ${L.streak} d'affilée · passage ${L.passes + 1}`;
+}
+/** Numéro de mesure affiché (la levée n'a pas de numéro). */
+export function barLabel(i) {
+  const pk = G.song && G.song.bars[0].pickup;
+  return pk ? (i === 0 ? 'levée' : 'm. ' + i) : 'm. ' + (i + 1);
+}
+function fillLoopDialog() {
+  const s = G.song, from = $('loopFrom'), to = $('loopTo'), tg = $('loopTarget');
+  from.innerHTML = ''; to.innerHTML = ''; tg.innerHTML = '';
+  s.bars.forEach((b, i) => { for (const sel of [from, to]) { const o = document.createElement('option'); o.value = i; o.textContent = barLabel(i).replace('m. ', ''); sel.appendChild(o); } });
+  const cur = Math.max(0, Math.min(s.bars.length - 1, barAt(s, Math.max(0, G.pos)).index));
+  from.value = G.loop ? G.loop.fromBar : cur; to.value = G.loop ? G.loop.toBar : Math.min(s.bars.length - 1, cur + 1);
+  for (let t = 50; t <= 150; t += 10) { const o = document.createElement('option'); o.value = t; o.textContent = t + ' %'; tg.appendChild(o); }
+  tg.value = G.loop ? G.loop.target : 100;
+  $('loopStop').hidden = !G.loop;
 }
 export function updatePlayedHud() {
   let main = '—', sub = '';
@@ -74,6 +94,7 @@ export function selectSong(song) {
   setPlaying(false);
   G.song = song; G.notes = song.notes; resetGeom();
   setNameKey(song.key);
+  if (!song.fingered) assignFingers(song);          // doigtés calculés une fois (ceux de la partition sont gardés)
   $('tracksBtn').hidden = !song.raw;
   { const r = song.notes.filter(n => n.hand === 'R').map(n => n.midi).sort((a, b) => a - b);
     if (r.length) setKbOct(Math.floor(r[Math.floor(r.length * 0.2)] / 12) - 1, true); }
@@ -112,7 +133,7 @@ export function bind() {
   bindSelect('hands', 'hands', reset);
   bindSelect('notation', 'notation');
   bindSelect('sound', 'sound', () => { try { audio.ensure(); } catch (e) { /* */ } });
-  bindCheck('kbLabels', 'kbLabels'); bindCheck('kbFollow', 'kbFollow');
+  bindCheck('kbLabels', 'kbLabels'); bindCheck('kbFollow', 'kbFollow'); bindCheck('fingers', 'fingers');
   $('songSel').addEventListener('change', e => { const s = songs.find(x => x.id === e.target.value); if (s) selectSong(s); e.target.blur(); });
   $('playBtn').addEventListener('click', e => { setPlaying(!G.playing); e.currentTarget.blur(); });
   $('restartBtn').addEventListener('click', e => { reset(); e.currentTarget.blur(); });
@@ -158,6 +179,16 @@ export function bind() {
     try { addAndSelect(buildChosen()); $('tracks').hidden = true; } catch (err) { toast(err.message, true); }
   });
   $('trkCancel').addEventListener('click', () => { $('tracks').hidden = true; if (G.listen) reset(); if (G.song && !songs.includes(G.song)) selectSong(songs[0]); });
+  // Boucle de travail
+  $('loopBtn').addEventListener('click', e => { e.currentTarget.blur(); fillLoopDialog(); $('loopDlg').hidden = false; });
+  $('loopClose').addEventListener('click', () => $('loopDlg').hidden = true);
+  $('loopStart').addEventListener('click', () => {
+    $('loopDlg').hidden = true;
+    startLoop(+$('loopFrom').value, +$('loopTo').value, $('loopAuto').checked, +$('loopTarget').value);
+    toast('Boucle lancée : jouez sans faute pour accélérer');
+  });
+  $('loopStop').addEventListener('click', () => { $('loopDlg').hidden = true; stopLoop(); toast('Boucle arrêtée'); });
+  onTempoChange(() => { $('tempo').value = S.tempo; updateTempoTxt(); });
   // Reconnaissance
   $('recoBtn').addEventListener('click', e => { e.currentTarget.blur(); $('reco').hidden = false; });
   $('recoClose').addEventListener('click', () => { stopRecording(); $('reco').hidden = true; });
@@ -209,7 +240,7 @@ export function bind() {
       } else if (lastFocus && document.contains(lastFocus)) { lastFocus.focus(); lastFocus = null; }
     }).observe(ov, { attributes:true, attributeFilter:['hidden'] });
   }
-  addEventListener('keydown', e => { if (e.key === 'Escape') for (const id of ['help', 'results', 'search', 'tracks', 'guide', 'reco']) if (!$(id).hidden) { $(id).hidden = true; if (id === 'tracks' && G.listen) reset(); } });
+  addEventListener('keydown', e => { if (e.key === 'Escape') for (const id of ['help', 'results', 'search', 'tracks', 'guide', 'reco', 'loopDlg', 'today']) if (!$(id).hidden) { $(id).hidden = true; if (id === 'tracks' && G.listen) reset(); } });
   $('helpBtn').addEventListener('click', () => $('help').hidden = false);
   $('helpClose').addEventListener('click', () => $('help').hidden = true);
   $('resAgain').addEventListener('click', () => { reset(); setPlaying(true); });

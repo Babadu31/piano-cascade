@@ -1,7 +1,7 @@
 import { audio } from './audio.js';
 import { COL } from './constants.js';
 import { $ } from './dom.js';
-import { G, judge, setPlaying } from './game.js';
+import { G, judge, releaseHold, setPlaying } from './game.js';
 import { yin } from './pitch.js';
 import { S } from './settings.js';
 import { noteName } from './theory.js';
@@ -21,7 +21,7 @@ export function noteOn(midi, src) {
   input.last = { midi, src, color };
   window.dispatchEvent(new CustomEvent('pc-note', { detail:{ midi, src, ok: color === COL.ok } }));
 }
-export function noteOff(midi) { input.held.delete(midi); }
+export function noteOff(midi) { input.held.delete(midi); releaseHold(midi); }
 
 // --- MIDI ---
 export async function enableMidi() {

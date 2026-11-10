@@ -18,6 +18,7 @@
   <select id="songSel" title="Choisir un morceau" aria-label="Morceau"></select>
   <label class="btn more" title="Importer une partition : MIDI (.mid) ou MusicXML (.musicxml, .xml, .mxl — export MuseScore)">📂 Importer<input type="file" id="fileIn" accept=".mid,.midi,.musicxml,.xml,.mxl" hidden></label>
   <button id="menuBtn" aria-label="Réglages" title="Réglages">☰</button>
+  <button id="todayBtn" title="Programme du jour et progrès">📅 Aujourd'hui</button>
   <button id="searchBtn" title="Chercher une musique sur internet">🔎 Chercher</button>
   <button id="recoBtn" title="Faire écouter une musique : l'appli la reconnaît et la transcrit">🎙 Reconnaître</button>
   <button id="installBtn" title="Installer Piano Cascade comme une application" hidden>📲 Installer</button>
@@ -25,6 +26,7 @@
   <button id="playBtn" class="primary" title="Espace">▶ Jouer</button>
   <button id="listenBtn" title="Écouter l'air joué par l'ordinateur, en voyant les notes">🎧 Écouter</button>
   <button id="restartBtn" aria-label="Recommencer" class="more" title="Recommencer depuis le début">⟲</button>
+  <button id="loopBtn" class="more" title="Répéter un passage difficile, en accélérant peu à peu">🔁 Boucle</button>
   <span id="songInfo" class="more" title="Tonalité et mesure du morceau"></span>
   <div class="grp more"><span>Tempo</span><input type="range" id="tempo" aria-label="Tempo" min="30" max="150" step="5"><b id="tempoTxt"></b></div>
   <div class="grp more"><label><input type="checkbox" id="metroOn"> Métronome</label><input type="range" id="metroVol" min="0" max="100" title="Volume du métronome" aria-label="Volume du métronome"></div>
@@ -45,6 +47,7 @@
       <label>Micro : seuil de bruit <span><input type="range" id="micGate" min="2" max="60" step="1"> <b id="micGateTxt"></b></span></label>
       <label>Son de l'ordi <select id="sound"><option value="piano">Vrai piano (Salamander)</option><option value="synth">Synthé simple</option></select></label>
       <label>Volume du piano de l'ordi <input type="range" id="pianoVol" min="0" max="100"></label>
+      <label>Doigtés (1 = pouce … 5 = auriculaire) <input type="checkbox" id="fingers"></label>
       <label>Lettres du clavier d'ordinateur sur les touches <input type="checkbox" id="kbLabels"></label>
       <label>Les lettres suivent la partition (octave auto) <input type="checkbox" id="kbFollow"></label>
       <label>Vitesse de défilement <input type="range" id="zoom" min="50" max="200" step="10"></label>
@@ -70,6 +73,7 @@
       <div class="stat" id="combo">Série <b id="comboV">0</b></div>
       <div class="stat">Précision <b id="acc">—</b></div>
       <div class="stat" id="bestTxt"></div>
+      <div class="stat" id="loopTxt" hidden></div>
     </div>
   </div>
 </main>
@@ -80,6 +84,7 @@
   <div class="stars" id="resStars"></div>
   <table id="resTable"></table>
   <p id="resTip" style="color:var(--muted)"></p>
+  <div id="resHard" class="dev" hidden></div>
   <button id="resAgain" class="primary">⟲ Rejouer</button> <button id="resClose">Fermer</button>
 </div></div>
 
@@ -92,6 +97,9 @@
     <li><b>🎤 Micro</b> : pour un piano acoustique. Le micro reconnaît <i>une note à la fois</i> ; sur un accord, une seule note juste suffit. Réglez le seuil de bruit dans ⚙ si des notes fantômes apparaissent.</li>
     <li><b>Clavier d'ordinateur</b> (pour tester) : rangée du milieu <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> = Do Ré Mi Fa Sol La Si Do (AZERTY), rangée du haut <kbd>Z</kbd> <kbd>E</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd> = dièses, <kbd>W</kbd>/<kbd>X</kbd> = octave −/+.</li>
   </ul>
+  <p><b>📅 Aujourd'hui</b> : votre programme du jour (échauffement, morceau en cours, nouveau morceau, révision) et vos progrès.</p>
+  <p><b>🔁 Boucle</b> : répétez un passage difficile ; après chaque passage sans faute, le tempo monte de 5 %. Le bilan d'un morceau propose aussi les mesures à travailler.</p>
+  <p><b>Doigtés</b> : les petits chiffres orange indiquent le doigt à utiliser (1 = pouce … 5 = auriculaire). Avec un clavier MIDI, <b>tenez les notes longues</b> toute leur durée.</p>
   <p><b>🎙 Reconnaître</b> : faites écouter une musique (ou choisissez un fichier mp3) ; l'appli trouve les notes et prépare la mélodie à jouer.</p>
   <p><b>Sur tablette/téléphone</b> : touchez directement le clavier à l'écran ; branchez un clavier MIDI avec un adaptateur USB-OTG.</p>
   <p><b>3. Appuyez sur ▶ Jouer</b> (ou <kbd>Espace</kbd>). Une mesure de décompte est donnée par le métronome.</p>
@@ -103,7 +111,7 @@
   <p>Couleurs : <span style="color:#4f8cff">bleu = main droite</span>, <span style="color:#ff9f43">orange = main gauche</span>, <span style="color:#2ecc71">vert = réussie</span>, <span style="color:#ff5468">rouge = ratée</span>. Les touches jaunes du clavier indiquent quoi jouer.</p>
   <p style="color:var(--muted)">Octaves : Do4 = le do du milieu du piano (certaines méthodes françaises l'appellent Do3).
   La tonalité et la mesure du morceau sont indiquées en haut (ex. « Ré majeur · 3/4 »).</p>
-  <p class="muted small">Piano Cascade 1.4 · sons de piano : Salamander Grand Piano (A. Holm, CC BY 3.0) · transcription : Basic Pitch (Spotify, Apache 2.0)</p>
+  <p class="muted small">Piano Cascade 1.5 · sons de piano : Salamander Grand Piano (A. Holm, CC BY 3.0) · transcription : Basic Pitch (Spotify, Apache 2.0)</p>
   <button id="helpClose" class="primary">Compris !</button>
 </div></div>
 <div id="search" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="searchTitle"><div class="card wide">
@@ -149,6 +157,30 @@
   <p class="muted small" style="margin:0 0 8px">« Piano facile / accords » transforme n'importe quel morceau (orchestre, jeu vidéo, film…) en version piano : la piste « Main droite » donne la mélodie, l'harmonie est calculée à partir de <b>tous</b> les instruments.</p>
   <label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input type="checkbox" id="trkSimple"> Simplifier : une seule note à la fois par main (plus facile pour commencer)</label>
   <button id="trkListen">🎧 Écouter ce choix</button> <button id="trkOk" class="primary">✔ Valider</button> <button id="trkCancel">Annuler</button>
+</div></div>
+
+<div id="today" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="todayTitle"><div class="card wide">
+  <h2 id="todayTitle">📅 Aujourd'hui</h2>
+  <div id="todayStats" class="dev"></div>
+  <h3 style="margin:14px 0 6px">Programme du jour</h3>
+  <div id="todayPlan"></div>
+  <h3 style="margin:18px 0 6px">📈 Mes progrès</h3>
+  <div id="progress"></div>
+  <p class="muted small">Un morceau est « maîtrisé » quand vous le jouez en mode Rythme, à 100 % du tempo, avec au moins 90 % de précision. Tout reste enregistré sur cet appareil.</p>
+  <button id="todayClose" class="primary">Fermer</button> <button id="historyClear">Effacer l'historique</button>
+</div></div>
+
+<div id="loopDlg" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="loopTitle"><div class="card">
+  <h2 id="loopTitle">🔁 Travailler un passage</h2>
+  <p class="muted">Le passage se répète en boucle, précédé d'une mesure de décompte. Après chaque passage <b>sans faute</b>, le tempo monte de 5 %.</p>
+  <div class="row2" style="align-items:center;flex-wrap:wrap">
+    <label>De la mesure <select id="loopFrom" aria-label="Première mesure"></select></label>
+    <label>à la mesure <select id="loopTo" aria-label="Dernière mesure"></select></label>
+  </div>
+  <label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0"><input type="checkbox" id="loopAuto" checked>
+    Accélérer après chaque passage réussi, jusqu'à <select id="loopTarget" aria-label="Tempo visé"></select></label>
+  <p class="muted small">Astuce : commencez lentement (50–60 %) et une main à la fois ; c'est la régularité qui fait progresser.</p>
+  <button id="loopStart" class="primary">▶ Travailler ce passage</button> <button id="loopStop">⏹ Arrêter la boucle</button> <button id="loopClose">Fermer</button>
 </div></div>
 
 <div id="guide" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="card wide">
